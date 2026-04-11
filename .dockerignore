@@ -1,0 +1,8 @@
+# .dockerignore
+node_modules/
+.env
+.env.local
+.railway/
+.git
+.gitignore
+README.md
