@@ -2,8 +2,21 @@ import { Elysia, t } from "elysia";
 import * as cheerio from "cheerio";
 import { ParseTimeRange } from "./ParseTime";
 import { ParseDay } from "./ParseDay";
+import { swagger } from "@elysiajs/swagger";
 
 const app = new Elysia()
+  .use(swagger({
+    documentation: {
+      info: {
+        title: "IIUM Schedule API",
+        version: "1.0.0",
+        description: "API to fetch IIUM course schedules based on various parameters.",
+      },
+      tags: [
+        {name: "Schedule", description: "Course Schedule Endpoints"}
+      ]
+    }
+  }))
   .post("/schedule", async ({ body }) => {
     const { page, kuliyyah, study, course, sem, session } = body;
     const url = `https://myapps.iium.edu.my/StudentOnline/schedule1.php?action=view&view=${(page ?? 1) * 50}&kuly=${kuliyyah}&ctype=${study === "PG" ? ">=" : "<"}&course=${course}&sem=${sem}&ses=${session}`;
@@ -50,16 +63,44 @@ const app = new Elysia()
       courses.push({ course_code, course_section, course_name, course_credits, lecturer, schedule });
     });
 
-    return courses;
-  }, {
+    return {
+      data: courses,
+      message: courses.length > 0 ? "Schedules fetched successfully" : "No schudules found for the given parameters",
+    };
+  }, 
+  {
     body: t.Object({
       page: t.Optional(t.Number({ default: 1 })),
-      kuliyyah: t.String(),
+      kuliyyah: t.String({ default: "KICT" }),
       study: t.Optional(t.String({ default: "UG" })),
       course: t.Optional(t.String({ default: "" })),
-      sem: t.String(),
-      session: t.String(),
+      sem: t.String({default: "2"}),
+      session: t.String({default: "2025/2026"}),
     }),
+
+    detail:{
+      description: "Fetch IIUM course schedules based on various parameters.",
+      tags: ["Schedule"],
+    },
+
+    response: {
+      200: t.Object({
+        data: t.Array(t.Object({
+          course_code: t.String(),
+          course_section: t.String(),
+          course_name: t.String(),
+          course_credits: t.String(),
+          lecturer: t.String(),
+          schedule: t.Array(t.Object({
+            day: t.Union([t.Number(), t.Literal("")]),
+            start_time: t.String(),
+            end_time: t.String(),
+            venue: t.String(),
+          })),
+        })),
+        message: t.String(),
+      })
+    }
   })
   .listen(3000);
 
