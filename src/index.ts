@@ -4,6 +4,15 @@ import { ParseTimeRange } from "./ParseTime";
 import { ParseDay } from "./ParseDay";
 import { swagger } from "@elysiajs/swagger";
 
+const scheduleQuery = t.Object({
+  page: t.Optional(t.Number({ default: 1 })),
+  kuliyyah: t.String({ default: "KICT" }),
+  study: t.Optional(t.String({ default: "UG" })),
+  course: t.Optional(t.String({ default: "" })),
+  sem: t.String({default: "2"}),
+  session: t.String({default: "2025/2026"}),
+});
+
 const app = new Elysia()
   .use(swagger({
     documentation: {
@@ -17,8 +26,8 @@ const app = new Elysia()
       ]
     }
   }))
-  .post("/schedule", async ({ body }) => {
-    const { page, kuliyyah, study, course, sem, session } = body;
+  .get("/schedule", async ({ query }) => {
+    const { page, kuliyyah, study, course, sem, session } = query;
     const url = `https://myapps.iium.edu.my/StudentOnline/schedule1.php?action=view&view=${(page ?? 1) * 50}&kuly=${kuliyyah}&ctype=${study === "PG" ? ">=" : "<"}&course=${course}&sem=${sem}&ses=${session}`;
 
     const response = await fetch(url);
@@ -69,14 +78,7 @@ const app = new Elysia()
     };
   }, 
   {
-    body: t.Object({
-      page: t.Optional(t.Number({ default: 1 })),
-      kuliyyah: t.String({ default: "KICT" }),
-      study: t.Optional(t.String({ default: "UG" })),
-      course: t.Optional(t.String({ default: "" })),
-      sem: t.String({default: "2"}),
-      session: t.String({default: "2025/2026"}),
-    }),
+    query: scheduleQuery,
 
     detail:{
       description: "Fetch IIUM course schedules based on various parameters.",
@@ -98,6 +100,36 @@ const app = new Elysia()
             venue: t.String(),
           })),
         })),
+        message: t.String(),
+      })
+    }
+  })
+  .get("/schedule/pages", async ({ query }) => {
+    const { page, kuliyyah, study, course, sem, session } = query;
+    const url = `https://myapps.iium.edu.my/StudentOnline/schedule1.php?action=view&view=${(page ?? 1) * 50}&kuly=${kuliyyah}&ctype=${study === "PG" ? ">=" : "<"}&course=${course}&sem=${sem}&ses=${session}`;
+
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const total_page = $('table').eq(1).find('tr').eq(0).find('a').eq(-2)
+    
+    return {
+      data: parseInt(total_page.text().trim()) || 1,
+      message: "Total pages fetched successfully",
+    }
+
+  },
+  {
+    query: scheduleQuery,
+
+    detail:{
+      description: "Fetch total number of pages available for the given schedule parameters.",
+      tags: ["Schedule"],
+    },
+
+    response: {
+      200: t.Object({
+        data: t.Number(),
         message: t.String(),
       })
     }

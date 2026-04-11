@@ -29,5 +29,3 @@ function to24Hour(time: string): string {
 
   return `${String(hours).padStart(2, "0")}${m}`;
 }
-
-console.log(ParseTimeRange(""));
